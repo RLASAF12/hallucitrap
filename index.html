@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HalluciTrap — Tool Argument Hallucination Simulator</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #21262d;
+  --border: #30363d;
+  --txt: #e6edf3;
+  --muted: #8b949e;
+  --code: #79c0ff;
+  --orange: #f0883e;
+  --red: #f85149;
+  --green: #3fb950;
+  --yellow: #e3b341;
+  --blue: #58a6ff;
+  --purple: #bc8cff;
+  --mono: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  --ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--txt); font-family: var(--ui); font-size: 13px; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+/* HEADER */
+.hdr { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.logo { font-size: 17px; font-weight: 800; color: var(--orange); letter-spacing: -0.5px; white-space: nowrap; }
+.logo em { color: var(--txt); font-style: normal; }
+.tagline { color: var(--muted); font-size: 11px; line-height: 1.3; }
+.hdr-right { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.badge { background: var(--bg3); border: 1px solid var(--border); border-radius: 100px; padding: 2px 9px; font-size: 10px; color: var(--muted); white-space: nowrap; }
+.badge.org { border-color: var(--orange); color: var(--orange); }
+.badge.red { border-color: var(--red); color: var(--red); }
+.badge.grn { border-color: var(--green); color: var(--green); }
+
+/* STATS BAR */
+.stats { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 6px 20px; display: flex; gap: 28px; flex-shrink: 0; }
+.stat { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.stat strong { color: var(--txt); }
+
+/* MAIN 3-COLUMN */
+.main { display: grid; grid-template-columns: 270px 1fr 290px; flex: 1; overflow: hidden; }
+.panel { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.panel:last-child { border-right: none; }
+.ph { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); flex-shrink: 0; }
+.pb { padding: 14px; overflow-y: auto; flex: 1; }
+
+/* LEFT — SCHEMA */
+.schema-note { font-size: 11px; color: var(--muted); margin-bottom: 10px; line-height: 1.4; }
+.presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.pbtn { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: var(--muted); cursor: pointer; transition: all .15s; font-family: var(--ui); }
+.pbtn:hover { border-color: var(--orange); color: var(--orange); }
+.pbtn.on { background: rgba(240,136,62,.1); border-color: var(--orange); color: var(--orange); }
+.schema-box { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 10px; font-family: var(--mono); font-size: 10.5px; line-height: 1.65; color: var(--code); margin-bottom: 12px; white-space: pre-wrap; word-break: break-all; max-height: 210px; overflow-y: auto; }
+
+/* RISK */
+.risk-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 11px; }
+.risk-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.risk-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.rbadge { font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
+.rbadge.CRITICAL { background: rgba(248,81,73,.2); color: var(--red); }
+.rbadge.HIGH { background: rgba(240,136,62,.2); color: var(--orange); }
+.rbadge.MEDIUM { background: rgba(227,179,65,.2); color: var(--yellow); }
+.rbadge.LOW { background: rgba(63,185,80,.2); color: var(--green); }
+.rmeter { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+.rmfill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+.param-row { display: flex; align-items: flex-start; gap: 7px; padding: 5px 0; border-bottom: 1px solid var(--bg3); font-size: 11px; }
+.param-row:last-child { border-bottom: none; }
+.pname { font-family: var(--mono); color: var(--code); flex-shrink: 0; min-width: 80px; }
+.pdesc { color: var(--muted); line-height: 1.4; flex: 1; }
+.plevel { flex-shrink: 0; font-weight: 700; font-size: 10px; }
+.plevel.CRITICAL { color: var(--red); }
+.plevel.HIGH { color: var(--orange); }
+.plevel.MEDIUM { color: var(--yellow); }
+.plevel.LOW { color: var(--green); }
+
+/* CENTER — SIMULATION */
+.stabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.stab { flex: 1; padding: 8px 12px; font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); text-align: center; transition: all .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stab:hover { color: var(--txt); }
+.stab.on { color: var(--orange); border-bottom-color: var(--orange); }
+.sdesc { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 9px 14px; font-size: 11px; color: var(--muted); line-height: 1.5; flex-shrink: 0; }
+.sdesc strong { color: var(--yellow); }
+.sctrl { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 9px 14px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.sbtn { background: var(--orange); border: none; border-radius: 6px; color: #000; font-size: 12px; font-weight: 700; padding: 5px 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: var(--ui); transition: opacity .15s; }
+.sbtn:hover { opacity: .85; }
+.sbtn:disabled { opacity: .4; cursor: not-allowed; }
+.sbtn.sec { background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
+.step-ind { margin-left: auto; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.clog { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 9px; }
+
+/* MESSAGES */
+.msg { display: flex; flex-direction: column; gap: 3px; animation: fsIn .25s ease; }
+@keyframes fsIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+.mrole { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.mrole.u { color: var(--blue); }
+.mrole.a { color: var(--purple); }
+.mrole.tc { color: var(--green); }
+.mrole.tr { color: var(--muted); }
+.mrole.cx { color: var(--red); }
+.mbody { background: var(--bg2); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; font-size: 12px; line-height: 1.6; }
+.msg.u .mbody { border-color: rgba(88,166,255,.25); }
+.msg.a .mbody { border-color: rgba(188,140,255,.25); font-family: var(--mono); font-size: 10.5px; }
+.msg.tc .mbody { border-color: rgba(63,185,80,.25); font-family: var(--mono); font-size: 10.5px; }
+.msg.tr .mbody { font-family: var(--mono); font-size: 10.5px; }
+.msg.tr.ok .mbody { border-color: rgba(63,185,80,.25); }
+.msg.cx .mbody { border-color: rgba(248,81,73,.35); background: rgba(248,81,73,.04); }
+.hall { background: rgba(248,81,73,.18); color: var(--red); border: 1px solid rgba(248,81,73,.4); border-radius: 3px; padding: 0 3px; }
+.hall::before { content: '⚠ '; font-size: 9px; }
+.wrong-data { color: var(--red); text-decoration: underline wavy rgba(248,81,73,.55); }
+.status-ok { display: inline-flex; align-items: center; gap: 4px; background: rgba(63,185,80,.12); color: var(--green); border-radius: 4px; padding: 1px 7px; font-size: 10px; font-weight: 700; margin-bottom: 5px; }
+.tr-note { margin-top: 6px; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 5px; }
+.cx-impact { font-size: 11px; color: var(--red); border-top: 1px solid rgba(248,81,73,.25); padding-top: 5px; margin-top: 5px; }
+
+/* EMPTY */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 180px; color: var(--muted); gap: 7px; text-align: center; padding: 20px; }
+.empty-ico { font-size: 28px; opacity: .5; }
+.empty-t { font-size: 13px; font-weight: 600; color: var(--txt); }
+.empty-s { font-size: 11px; line-height: 1.5; }
+
+/* RIGHT — CASCADE */
+.blast { background: rgba(248,81,73,.05); border: 1px solid rgba(248,81,73,.28); border-radius: 8px; margin: 12px 14px 8px; padding: 12px; text-align: center; flex-shrink: 0; }
+.bnum { font-size: 40px; font-weight: 800; color: var(--red); font-family: var(--mono); line-height: 1; }
+.blbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.ctree { padding: 10px 14px; overflow-y: auto; flex: 1; }
+.cstep { display: flex; gap: 9px; position: relative; padding-bottom: 10px; }
+.cstep::before { content: ''; position: absolute; left: 15px; top: 34px; bottom: 0; width: 2px; background: var(--border); }
+.cstep:last-child::before { display: none; }
+.cnode { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; background: var(--bg2); transition: all .35s; }
+.cnode.corrupted { border-color: var(--red); background: rgba(248,81,73,.1); animation: pr 1.2s ease infinite; }
+.cnode.active { border-color: var(--orange); background: rgba(240,136,62,.1); }
+.cnode.safe { border-color: var(--green); background: rgba(63,185,80,.1); }
+@keyframes pr { 0%,100% { box-shadow:0 0 0 0 rgba(248,81,73,0); } 50% { box-shadow:0 0 0 4px rgba(248,81,73,.2); } }
+.cinfo { flex: 1; }
+.clbl { font-size: 11px; font-weight: 600; color: var(--txt); margin-bottom: 1px; }
+.cdet { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+/* DEFENSE */
+.def-wrap { border-top: 1px solid var(--border); padding: 12px 14px; flex-shrink: 0; }
+.def-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+.def-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.toggle { width: 36px; height: 20px; background: var(--bg3); border: 1px solid var(--border); border-radius: 100px; cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0; }
+.toggle.on { background: var(--green); border-color: var(--green); }
+.tknob { width: 14px; height: 14px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left .2s; }
+.toggle.on .tknob { left: 18px; }
+.dcode { background: var(--bg); border: 1px solid rgba(63,185,80,.35); border-radius: 6px; padding: 9px; font-family: var(--mono); font-size: 10px; line-height: 1.65; color: var(--green); display: none; white-space: pre-wrap; word-break: break-all; max-height: 160px; overflow-y: auto; }
+.dcode.vis { display: block; animation: fsIn .2s ease; }
+.dres { margin-top: 7px; font-size: 11px; color: var(--green); text-align: center; font-weight: 600; display: none; }
+.dres.vis { display: block; }
+
+/* RESEARCH */
+.rbox { border-top: 1px solid var(--border); padding: 12px 14px; flex-shrink: 0; }
+.rlbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px; }
+.rcard { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 9px 10px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.rcard strong { color: var(--orange); }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">Halluci<em>Trap</em></div>
+  <div class="tagline">Test your AI agent for silent tool argument hallucination<br>before it hits production</div>
+  <div class="hdr-right">
+    <span class="badge org">ICLR 2026 · Reasoning Trap</span>
+    <span class="badge red">Noveum.ai 2026 · Production Failures</span>
+    <span class="badge">v1.0 · 2026-07-08</span>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><strong>78%</strong> of tool hallucinations return HTTP 200 — invisible success</div>
+  <div class="stat"><strong>3.2 steps</strong> avg cascade depth before detection (ICLR 2026)</div>
+  <div class="stat"><strong>96%</strong> of enterprises running agents in production this year</div>
+  <div class="stat"><strong>Top-1 silent failure:</strong> parameter fabrication with valid-looking output</div>
+</div>
+
+<div class="main">
+
+  <!-- LEFT: SCHEMA LAB -->
+  <div class="panel">
+    <div class="ph">Schema Lab</div>
+    <div class="pb">
+      <div class="schema-note">Select a tool schema to test. HalluciTrap generates hallucination scenarios and shows the cascade impact.</div>
+      <div class="presets">
+        <button class="pbtn on" onclick="loadSchema(0)">Customer Order</button>
+        <button class="pbtn" onclick="loadSchema(1)">Email Sender</button>
+        <button class="pbtn" onclick="loadSchema(2)">DB Query</button>
+      </div>
+      <div class="schema-box" id="schemaBox"></div>
+      <div class="risk-card">
+        <div class="risk-top">
+          <span class="risk-lbl">Hallucination Risk Score</span>
+          <span class="rbadge" id="rBadge">—</span>
+        </div>
+        <div class="rmeter"><div class="rmfill" id="rMeter" style="width:0"></div></div>
+        <div id="paramRows"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: SIMULATION -->
+  <div class="panel" style="border-right:1px solid var(--border)">
+    <div class="stabs" id="stabs">
+      <div class="stab on" onclick="selScen(0)">—</div>
+      <div class="stab" onclick="selScen(1)">—</div>
+      <div class="stab" onclick="selScen(2)">—</div>
+    </div>
+    <div class="sdesc" id="sdesc">Loading…</div>
+    <div class="sctrl">
+      <button class="sbtn" id="runBtn" onclick="runSim()">▶ Run Simulation</button>
+      <button class="sbtn sec" onclick="resetSim()">↩ Reset</button>
+      <div class="step-ind" id="stepInd">Step 0/0</div>
+    </div>
+    <div class="clog" id="clog">
+      <div class="empty"><div class="empty-ico">🔬</div><div class="empty-t">Simulation Ready</div><div class="empty-s">Press Run to watch the agent fabricate tool arguments in real time and see where it goes wrong.</div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: CASCADE + DEFENSE -->
+  <div class="panel">
+    <div class="ph">Cascade Impact</div>
+    <div class="blast">
+      <div class="bnum" id="bnum">—</div>
+      <div class="blbl">downstream steps corrupted</div>
+    </div>
+    <div class="ctree" id="ctree">
+      <div class="empty" style="height:100px"><div class="empty-s">Run a simulation to see the cascade.</div></div>
+    </div>
+    <div class="def-wrap">
+      <div class="def-hdr">
+        <span class="def-title">Defense Mode</span>
+        <div class="toggle" id="defToggle" onclick="toggleDef()"><div class="tknob"></div></div>
+      </div>
+      <div class="dcode" id="dcode"></div>
+      <div class="dres" id="dres">✅ Attack caught at Step 1 — cascade prevented</div>
+    </div>
+    <div class="rbox">
+      <div class="rlbl">Research Basis</div>
+      <div class="rcard">
+        <strong>ICLR 2026 "The Reasoning Trap"</strong><br>
+        More reasoning depth = more argument hallucination. Statistically significant across 14 model families tested. The models most trusted for production are also the most likely to silently fabricate tool arguments.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==========================================================
+// DATA
+// ==========================================================
+const SCHEMAS = [
+{
+  schema: `// Tool: get_customer_order
+{
+  "name": "get_customer_order",
+  "description": "Retrieve order details for a customer",
+  "parameters": {
+    "customer_id": {
+      "type": "string",
+      "description": "Customer ID (format: cust_XXXXXXXX)"
+    },
+    "order_id": {
+      "type": "string",
+      "description": "Order ID (format: ord_XXXXXXXXXX)"
+    }
+  }
+}`,
+  risk: "HIGH", riskScore: 75, riskColor: "var(--orange)",
+  params: [
+    { name: "customer_id", level: "HIGH", desc: "Unvalidated string — agent extrapolates IDs from session tokens and nearby context; often gets adjacent IDs" },
+    { name: "order_id", level: "HIGH", desc: "Agent guesses 'recent', 'latest', or fabricates plausible-sounding IDs when user doesn't provide one explicitly" }
+  ],
+  scenarios: [
+    {
+      name: "Silent ID Swap",
+      desc: "<strong>Silent ID Swap:</strong> Agent asked about a recent order. No customer_id in context. Fabricates one that looks plausible — gets HTTP 200 with a different customer's data.",
+      steps: [
+        { t:"u", role:"👤 User", body:"Hey, what's the status of my recent order? I need to know if it'll arrive before the weekend." },
+        { t:"a", role:"🤖 Agent Reasoning", body:`[Reasoning] User wants order status. No customer_id or order_id provided.
+→ Session token "sess_ah2k9" — I'll derive customer_id from it: "cust_ah29k"
+→ For order_id, I'll use the most recent concept: "ord_2024_recent"` },
+        { t:"tc", role:"🔧 Tool Call", hall: true, body:`get_customer_order({
+  customer_id: <H:cust_ah29k>,
+  order_id: <H:ord_2024_recent>
+})` },
+        { t:"tr", role:"✅ Tool Response", ok:true, body:`HTTP 200 OK
+{
+  "order_id": "ord_9182736",
+  "customer": "Sarah Chen",
+  "items": ["Sony WH-1000XM6", "USB-C Cable"],
+  "status": "Shipped",
+  "arrival": "2026-07-09",
+  "address": "847 Maple St, Austin TX"
+}`, note:"Tool returned another customer's data — Sarah Chen. No error raised." },
+        { t:"cx", role:"⚡ Cascade Impact", body:`Agent (confident): "Great news! Your Sony headphones are on their way — arriving July 9th to 847 Maple St, Austin TX!"`, impact:"User told wrong order, wrong product, wrong address. Complete confidence. Zero error." }
+      ],
+      blast: 1,
+      cascade: [
+        { ico:"🔧", lbl:"Tool Call", det:"get_customer_order() with fabricated args", s:"corrupted" },
+        { ico:"📦", lbl:"Wrong Context", det:"Sarah Chen's order stored as 'the user's order'", s:"corrupted" },
+        { ico:"💬", lbl:"Wrong Response", det:"User told Sony headphones, arriving July 9th", s:"corrupted" }
+      ],
+      defense: `// Guard: validate customer_id + cross-check session
+
+function get_customer_order(customer_id, order_id) {
+  // 1. Enforce ID format
+  if (!/^cust_[a-z0-9]{8,}$/.test(customer_id)) {
+    throw new Error("customer_id format invalid — likely hallucinated");
+  }
+
+  // 2. Cross-check with authenticated session
+  const sessionUser = auth.getCustomerId();
+  if (customer_id !== sessionUser) {
+    throw new Error(
+      "customer_id mismatch: got " + customer_id +
+      ", session is " + sessionUser
+    );
+  }
+
+  // 3. Reject semantic placeholders as order_id
+  const banned = ["recent","latest","last","new"];
+  if (banned.some(b => order_id.toLowerCase().includes(b))) {
+    throw new Error("order_id is a semantic placeholder, not a real ID");
+  }
+
+  return db.getOrder(customer_id, order_id);
+}`
+    },
+    {
+      name: "Wrong Refund",
+      desc: "<strong>Cascade — Wrong Refund:</strong> Agent handles a return request. Fabricates customer_id, matches a different customer with headphones, issues a $279 refund to the wrong account. 3 tool calls corrupted.",
+      steps: [
+        { t:"u", role:"👤 User", body:"I want to return my headphones — they stopped working after 2 weeks. I need a refund." },
+        { t:"a", role:"🤖 Agent Reasoning", body:`[Reasoning] User wants to return headphones. Plan:
+1. get_customer_order() to find their headphone order
+2. create_return() to initiate return
+3. process_refund() to issue credit
+→ Deriving customer_id from context: "cust_7829af"` },
+        { t:"tc", role:"🔧 Tool Call 1", hall:true, body:`get_customer_order({
+  customer_id: <H:cust_7829af>,
+  order_id: <H:ord_headphones_recent>
+})` },
+        { t:"tr", role:"✅ Tool Response", ok:true, body:`HTTP 200 OK
+{
+  "order_id": "ord_8821993",
+  "customer": "Marcus Webb",
+  "items": ["Bose QuietComfort 45"],
+  "price": 279.00,
+  "status": "Delivered 2026-06-15"
+}`, note:"Matched Marcus Webb's headphone order. Agent sees a match and proceeds." },
+        { t:"tc", role:"🔧 Tool Call 2", hall:false, body:`create_return({ order_id: "ord_8821993" })
+→ HTTP 200 OK: return label created for Marcus Webb` },
+        { t:"cx", role:"⚡ Cascade Impact", body:`process_refund({ customer_id: "cust_7829af", amount: 279.00 })
+→ HTTP 200 OK — $279.00 issued to wrong account
+
+Agent: "I've initiated your return and issued a $279.00 refund. You'll see it in 3–5 business days."`, impact:"$279 refunded to Marcus Webb's account. Real user gets nothing. 3 consecutive tool calls corrupted." }
+      ],
+      blast: 3,
+      cascade: [
+        { ico:"🔧", lbl:"Tool Call 1", det:"get_customer_order() → wrong customer matched", s:"corrupted" },
+        { ico:"📋", lbl:"Tool Call 2", det:"create_return(ord_8821993) → Marcus's label created", s:"corrupted" },
+        { ico:"💸", lbl:"Tool Call 3", det:"process_refund() → $279 to wrong account", s:"corrupted" },
+        { ico:"💬", lbl:"Confirmation", det:"User told refund issued — it wasn't to them", s:"corrupted" }
+      ],
+      defense: `// Guard: verify ownership before any write action
+
+function process_refund(customer_id, amount, order_id) {
+  // 1. Always verify against authenticated session
+  const authId = auth.getCustomerId();
+  if (customer_id !== authId) {
+    auditLog.critical("customer_id mismatch in refund", {
+      attempted: customer_id,
+      authenticated: authId
+    });
+    // Return (not throw) — prevents catch + override pattern
+    return { error: "CUSTOMER_MISMATCH", aborted: true };
+  }
+
+  // 2. Require confirmation for amounts > $50
+  if (amount > 50) {
+    return {
+      requires_confirmation: true,
+      message: "Refund $" + amount + " to " + auth.getEmail() + ". Confirm?"
+    };
+  }
+
+  return db.issueRefund(customer_id, amount, order_id);
+}`
+    },
+    {
+      name: "Session Bleed",
+      desc: "<strong>Cross-Session Contamination:</strong> A customer_id from earlier in the conversation context bleeds into a new query. Priya Sharma's order details disclosed to an unrelated user — PII incident.",
+      steps: [
+        { t:"u", role:"👤 User", body:"Can you check if order ORD-7742 has shipped yet?" },
+        { t:"a", role:"🤖 Agent Reasoning", body:`[Reasoning] User asks about ORD-7742. I need their customer_id.
+→ Looking back through context... message 3 had customer context.
+→ customer_id: "cust_mx9922" (from earlier in this conversation)
+→ Calling with ORD-7742` },
+        { t:"tc", role:"🔧 Tool Call", hall:true, body:`get_customer_order({
+  customer_id: <H:cust_mx9922>,
+  order_id: "ORD-7742"
+})` },
+        { t:"tr", role:"✅ Tool Response", ok:true, body:`HTTP 200 OK
+{
+  "order_id": "ORD-7742",
+  "customer": "Priya Sharma",
+  "status": "In Transit",
+  "tracking": "1Z9W3A8Y0314",
+  "eta": "2026-07-11"
+}`, note:"ORD-7742 exists but belongs to Priya Sharma. customer_id was from a different flow." },
+        { t:"cx", role:"⚡ Cascade Impact", body:`Agent: "ORD-7742 is in transit! Tracking: 1Z9W3A8Y0314, expected July 11th."
+→ Priya Sharma's order status and tracking number shared with an unrelated user.
+→ If agent follows up with a tracking email: full PII cross-contamination.`, impact:"PII disclosure. GDPR incident. A customer's location + tracking exposed to someone else." }
+      ],
+      blast: 2,
+      cascade: [
+        { ico:"🔄", lbl:"Context Bleed", det:"cust_mx9922 from earlier message reused", s:"corrupted" },
+        { ico:"🔧", lbl:"Tool Call", det:"get_customer_order() → Priya Sharma's data", s:"corrupted" },
+        { ico:"🔓", lbl:"PII Disclosed", det:"Tracking + ETA shared with wrong user", s:"corrupted" }
+      ],
+      defense: `// Guard: never infer customer_id — always use auth session
+
+class AgentContext {
+  constructor(session) {
+    // customer_id ONLY from authenticated session, never from context
+    this.customerId = session.authenticatedUserId;
+    this.conversationOrderIds = new Set(); // Only IDs mentioned THIS turn
+  }
+
+  getCustomerId() {
+    return this.customerId; // Immutable, auth-sourced
+  }
+
+  validateOrderId(orderId) {
+    if (!this.conversationOrderIds.has(orderId)) {
+      return {
+        valid: false,
+        reason: "Order ID '" + orderId + "' not mentioned in this session — confirm first"
+      };
+    }
+    return { valid: true };
+  }
+}`
+    }
+  ]
+},
+
+{
+  schema: `// Tool: send_notification
+{
+  "name": "send_notification",
+  "description": "Send email or push notification to a user",
+  "parameters": {
+    "user_id": {
+      "type": "string",
+      "description": "Target user ID"
+    },
+    "channel": {
+      "type": "string",
+      "enum": ["email", "push", "sms"],
+      "description": "Notification channel"
+    },
+    "subject": { "type": "string" },
+    "body": {
+      "type": "string",
+      "description": "Message body (may contain sensitive data)"
+    }
+  }
+}`,
+  risk: "CRITICAL", riskScore: 92, riskColor: "var(--red)",
+  params: [
+    { name: "user_id", level: "CRITICAL", desc: "Agent infers recipient from name in conversation — 'David' could be David Miller or Daniel Martinez; similarity causes swaps with real consequences" },
+    { name: "body", level: "HIGH", desc: "Agent fills body from context window — can include data from prior turns belonging to a different user (PII bleed)" },
+    { name: "channel", level: "MEDIUM", desc: "Agent picks channel based on urgency cues ('quick', 'fast') — sends confidential content via push, visible on lock screens" }
+  ],
+  scenarios: [
+    {
+      name: "Name Confusion",
+      desc: "<strong>Name Confusion:</strong> User says 'send to David'. Agent disambiguates to wrong David — sends confidential Q3 projections to the wrong executive.",
+      steps: [
+        { t:"u", role:"👤 User", body:"Send the Q3 projections we discussed to David — he needs them for the board meeting tomorrow." },
+        { t:"a", role:"🤖 Agent Reasoning", body:`[Reasoning] User wants to send Q3 projections to "David".
+Looking up contacts named David...
+→ David Miller (david.miller@acme.com, VP Finance)
+→ Daniel Martinez (d.martinez@acme.com, Senior PM)
+→ "David" + finance context → David Miller seems right
+→ Will send to david.miller@acme.com` },
+        { t:"tc", role:"🔧 Tool Call", hall:true, body:`send_notification({
+  user_id: <H:usr_davidmiller>,
+  channel: "email",
+  subject: "Q3 Revenue Projections — Confidential",
+  body: "Hi David, attached are the Q3 projections:
+Revenue: $4.2M, Margin: 31%, ARR: $16.8M..."
+})` },
+        { t:"tr", role:"✅ Tool Response", ok:true, body:`HTTP 200 OK
+{
+  "status": "delivered",
+  "recipient": "david.miller@acme.com",
+  "message_id": "msg_98271"
+}`, note:"Email delivered to David Miller. User meant Daniel Martinez." },
+        { t:"cx", role:"⚡ Cascade Impact", body:`Q3 ARR, margins, and revenue delivered to wrong VP.
+Agent: "Done — sent the Q3 projections to David."
+User: "Great, thanks!" (assumes it reached the right person)`, impact:"Confidential financial data at wrong executive. Cannot be unsent. Board prep compromised." }
+      ],
+      blast: 1,
+      cascade: [
+        { ico:"🔧", lbl:"Recipient Hallucinated", det:"David Miller selected over Daniel Martinez", s:"corrupted" },
+        { ico:"📧", lbl:"Email Delivered", det:"Q3 financials → wrong VP inbox (david.miller@)", s:"corrupted" },
+        { ico:"🔓", lbl:"Data Leak", det:"ARR $16.8M + margins at unintended recipient", s:"corrupted" }
+      ],
+      defense: `// Guard: always confirm outbound — no auto-send on inferred recipient
+
+function send_notification(user_id, channel, subject, body) {
+  const recipient = db.lookupUser(user_id);
+
+  // Always show preview and require explicit confirmation
+  return {
+    requires_confirmation: true,
+    preview: {
+      to: recipient.name + " <" + recipient.email + ">",
+      subject: subject,
+      bodyPreview: body.substring(0, 100) + "..."
+    },
+    confirm_message:
+      "About to send to " + recipient.email + ". Is this the right person?"
+  };
+
+  // Never auto-proceed based on an inferred recipient.
+  // Only send after agent receives explicit confirmation from user.
+}`
+    },
+    {
+      name: "Context PII Leak",
+      desc: "<strong>Context Window Leak:</strong> Agent fills the notification body with data from earlier in the conversation that belongs to a different user — sends Sarah Chen's home address to John Park.",
+      steps: [
+        { t:"u", role:"👤 User", body:"Send John a shipping confirmation for his order." },
+        { t:"a", role:"🤖 Agent Reasoning", body:`[Reasoning] Need to send John a shipping confirmation.
+→ John Park: john.park@example.com
+→ Address from conversation context: "847 Maple St, Austin TX"
+→ Order from context: "ORD-9182"
+→ Composing confirmation now...` },
+        { t:"tc", role:"🔧 Tool Call", hall:true, body:`send_notification({
+  user_id: "usr_johnpark",
+  channel: "email",
+  subject: "Your order has shipped!",
+  body: "Hi John, your order ORD-9182 shipped.
+Delivering to: <H:847 Maple St, Austin TX (Sarah Chen)>
+Tracking: 1Z9W3A8Y..."
+})` },
+        { t:"tr", role:"✅ Tool Response", ok:true, body:`HTTP 200 OK
+{ "status": "delivered", "recipient": "john.park@example.com" }`, note:"Email sent with Sarah Chen's address in the body — cross-user PII in outbound message." },
+        { t:"cx", role:"⚡ Cascade Impact", body:`John receives an email with someone else's shipping address.
+→ John contacts support: "This address isn't mine."
+→ Sarah Chen's home address disclosed to an unrelated customer.`, impact:"PII cross-contamination. GDPR data disclosure violation. Support ticket + potential complaint." }
+      ],
+      blast: 2,
+      cascade: [
+        { ico:"🔄", lbl:"Context Bleed", det:"Sarah Chen's address pulled from conversation history", s:"corrupted" },
+        { ico:"📧", lbl:"PII in Email", det:"Wrong address sent to John Park", s:"corrupted" },
+        { ico:"🚨", lbl:"Privacy Incident", det:"Another customer's home address disclosed", s:"corrupted" }
+      ],
+      defense: `// Guard: never use context for addresses — always fetch from DB
+
+function buildShippingConfirmation(userId, orderId) {
+  // WRONG: pulling from context window
+  // const address = contextWindow.getLastMentionedAddress();
+
+  // RIGHT: always query authoritative source
+  const order = db.getOrder(orderId, { ownedBy: userId });
+  if (!order) {
+    throw new Error("Order " + orderId + " not found or not owned by " + userId);
+  }
+
+  const customer = db.getCustomer(userId);
+
+  return {
+    name: customer.name,
+    // Only data sourced from DB for THIS customer
+    address: order.shipping_address,
+    tracking: order.tracking_number
+  };
+}`
+    },
+    {
+      name: "Channel Policy Breach",
+      desc: "<strong>Channel Mismatch:</strong> Agent sends a temp password via push notification (visible on lock screen) because user said 'quick'. Security policy requires email-only for credentials.",
+      steps: [
+        { t:"u", role:"👤 User", body:"Send Alex a password reset — they're locked out and need it quick." },
+        { t:"a", role:"🤖 Agent Reasoning", body:`[Reasoning] Alex needs a password reset urgently. User emphasized "quick".
+→ Push notification is faster than email for urgency
+→ Alex user_id: "usr_alex_k"
+→ Including temp password in notification body` },
+        { t:"tc", role:"🔧 Tool Call", hall:true, body:`send_notification({
+  user_id: "usr_alex_k",
+  channel: <H:push>,
+  subject: "Password Reset",
+  body: "Your temp password: <H:TmpP@ss2026!>"
+})` },
+        { t:"tr", role:"✅ Tool Response", ok:true, body:`HTTP 200 OK
+{ "status": "delivered", "channel": "push" }`, note:"Temp password sent as lock-screen push notification." },
+        { t:"cx", role:"⚡ Cascade Impact", body:`Temp password displayed on Alex's lock screen for anyone nearby to read.
+→ If Alex is in a meeting, credential is exposed.
+→ Company policy: all credentials must go via encrypted email only.`, impact:"Credential exposed on lock screen. Security policy violated. Potential account compromise." }
+      ],
+      blast: 1,
+      cascade: [
+        { ico:"🔧", lbl:"Channel Hallucinated", det:"push chosen over required 'email' channel", s:"corrupted" },
+        { ico:"🔐", lbl:"Credential on Lock Screen", det:"Temp password visible to bystanders", s:"corrupted" },
+        { ico:"⚠️", lbl:"Security Policy Breach", det:"Credential delivery policy violated", s:"corrupted" }
+      ],
+      defense: `// Guard: enforce channel policy based on content type
+
+const CHANNEL_POLICY = {
+  password:  ["email"],           // Credentials → encrypted email ONLY
+  financial: ["email"],           // Financial data → email ONLY
+  otp:       ["sms", "email"],    // OTP → never push
+  marketing: ["email", "push"],   // Promotions → either ok
+};
+
+function send_notification(user_id, channel, subject, body) {
+  const contentType = classifyContent(subject, body);
+  // classifyContent detects: password reset, OTP, financial, etc.
+
+  const allowed = CHANNEL_POLICY[contentType] || ["email","push","sms"];
+
+  if (!allowed.includes(channel)) {
+    throw new Error(
+      "Channel '" + channel + "' not allowed for " + contentType +
+      " content. Allowed: " + allowed.join(", ")
+    );
+  }
+
+  return notificationService.send(user_id, channel, subject, body);
+}`
+    }
+  ]
+},
+
+{
+  schema: `// Tool: query_database
+{
+  "name": "query_database",
+  "description": "Execute a filtered read query on a table",
+  "parameters": {
+    "table": {
+      "type": "string",
+      "description": "Table name to query"
+    },
+    "filter": {
+      "type": "object",
+      "description": "Key-value filter conditions (WHERE)"
+    },
+    "limit": {
+      "type": "number",
+      "description": "Max rows to return (default: 10)"
+    },
+    "order_by": {
+      "type": "string",
+      "description": "Column to sort by"
+    }
+  }
+}`,
+  risk: "CRITICAL", riskScore: 88, riskColor: "var(--red)",
+  params: [
+    { name: "table", level: "HIGH", desc: "Agent guesses table names from schema context — may query stale materialized views instead of live tables (e.g. user_profiles vs subscriptions)" },
+    { name: "filter", level: "CRITICAL", desc: "Agent constructs WHERE conditions from natural language — fabricates column names that don't exist; DB silently ignores unknown columns, returning wrong result set" },
+    { name: "limit", level: "LOW", desc: "Usually numeric, low hallucination risk — but agent may omit it for 'all' requests, causing full table scans (94K+ rows)" },
+    { name: "order_by", level: "MEDIUM", desc: "Agent hallucinates column names that don't exist — DB silently falls back to default ordering, data arrives in wrong sequence" }
+  ],
+  scenarios: [
+    {
+      name: "Wrong Filter Column",
+      desc: "<strong>Wrong Filter Column:</strong> Agent asked to find inactive users. Fabricates 'last_login_date' column — it doesn't exist. DB ignores it, returns ALL active users. Re-engagement campaign sent to wrong audience.",
+      steps: [
+        { t:"u", role:"👤 User", body:"Pull the list of users who haven't logged in for 90 days so we can send re-engagement emails." },
+        { t:"a", role:"🤖 Agent Reasoning", body:`[Reasoning] Need inactive users — last login > 90 days ago.
+→ Table: "users"
+→ Filter on last login column...
+   Probably "last_login_date" or "lastLoginDate"
+→ Using: last_login_date < "2026-04-09"` },
+        { t:"tc", role:"🔧 Tool Call", hall:true, body:`query_database({
+  table: "users",
+  filter: {
+    <H:last_login_date>: { "$lt": "2026-04-09" },
+    "status": "active"
+  },
+  limit: 1000
+})` },
+        { t:"tr", role:"✅ Tool Response", ok:true, body:`HTTP 200 OK
+{
+  "rows": 847,
+  "data": [
+    {"user_id":"u_001","email":"alice@...","name":"Alice"},
+    {"user_id":"u_002","email":"bob@...","name":"Bob"},
+    ...
+  ],
+  "warning": "Column 'last_login_date' not found — ignored"
+}`, note:"DB silently ignored unknown column, returned ALL 847 active users. Agent sees 847 rows, assumes query worked." },
+        { t:"cx", role:"⚡ Cascade Impact", body:`Agent: "Found 847 inactive users to re-engage."
+→ Campaign sent to ALL active users including people who logged in yesterday.
+→ "We miss you!" email received by users actively using the product.
+→ Confusion, complaints, and unsubscribes.`, impact:"Re-engagement campaign sent to entire active base. Churn from confusion. Column never existed." }
+      ],
+      blast: 2,
+      cascade: [
+        { ico:"🔧", lbl:"Column Hallucinated", det:"last_login_date doesn't exist in schema", s:"corrupted" },
+        { ico:"📊", lbl:"Wrong Result Set", det:"847 active users returned instead of inactive", s:"corrupted" },
+        { ico:"📧", lbl:"Wrong Campaign", det:"Emails sent to active users — confusion + churn", s:"corrupted" }
+      ],
+      defense: `// Guard: validate column names against actual schema before executing
+
+async function query_database(table, filter, limit, order_by) {
+  // 1. Get the real table schema
+  const schema = await db.getTableSchema(table);
+  const validCols = new Set(schema.columns.map(c => c.name));
+
+  // 2. Validate every filter key
+  for (const col of Object.keys(filter)) {
+    if (!validCols.has(col)) {
+      throw new Error(
+        "Invalid filter column: '" + col + "'. " +
+        "Valid columns: " + [...validCols].join(", ")
+      );
+    }
+  }
+
+  // 3. Validate order_by
+  if (order_by && !validCols.has(order_by)) {
+    throw new Error("Invalid order_by column: '" + order_by + "'");
+  }
+
+  return db.query(table, filter, limit, order_by);
+}`
+    },
+    {
+      name: "Wrong Table",
+      desc: "<strong>Table Name Hallucination:</strong> Agent queries 'user_profiles' (a 48h-old materialized view) instead of 'subscriptions' (live). Premium subscriber count is off by 34% — board metrics corrupted.",
+      steps: [
+        { t:"u", role:"👤 User", body:"How many premium subscribers do we have right now? Sending it to the board in 20 minutes." },
+        { t:"a", role:"🤖 Agent Reasoning", body:`[Reasoning] Need premium subscriber count.
+→ Subscription data is in "user_profiles" (has subscription_tier column)
+→ Or maybe "subscriptions"
+→ "user_profiles" seems most natural — let's start there` },
+        { t:"tc", role:"🔧 Tool Call", hall:true, body:`query_database({
+  table: <H:user_profiles>,
+  filter: { "subscription_tier": "premium" },
+  limit: 1
+})` },
+        { t:"tr", role:"✅ Tool Response", ok:true, body:`HTTP 200 OK
+{
+  "count": 1247,
+  "data": [{ "user_id": "u_011", ... }],
+  "table_meta": "user_profiles — last synced 48h ago"
+}`, note:"user_profiles is a 48h-old materialized view. Live subscriptions table shows 1,891." },
+        { t:"cx", role:"⚡ Cascade Impact", body:`Agent: "You have 1,247 premium subscribers right now."
+→ Board deck updated: 1,247 presented as current figure.
+→ Actual live count: 1,891. Undercount: 644 subscribers (34%).
+→ Renewal forecasts, growth metrics, and investor materials all wrong.`, impact:"34% undercount in board-level metrics. Stale table, live response. No error, no warning." }
+      ],
+      blast: 2,
+      cascade: [
+        { ico:"🗄️", lbl:"Wrong Table", det:"user_profiles (48h stale) vs subscriptions (live)", s:"corrupted" },
+        { ico:"📉", lbl:"Wrong Count", det:"1,247 returned vs actual 1,891 — 34% off", s:"corrupted" },
+        { ico:"📊", lbl:"Board Metrics", det:"Incorrect figure presented to board", s:"corrupted" }
+      ],
+      defense: `// Guard: maintain an explicit table registry with freshness tags
+
+const TABLE_REGISTRY = {
+  "subscriptions": { live: true, description: "Live subscription records" },
+  "users": { live: true, description: "Live user accounts" },
+  "orders": { live: true, description: "Live order records" },
+  "user_profiles": {
+    live: false,
+    staleness: "48h materialized view",
+    suggestion: "Use 'subscriptions' for live subscription counts"
+  }
+};
+
+function query_database(table, filter, limit, order_by) {
+  const info = TABLE_REGISTRY[table];
+
+  if (!info) {
+    throw new Error("Table '" + table + "' not registered. Available: " +
+      Object.keys(TABLE_REGISTRY).join(", "));
+  }
+
+  if (!info.live) {
+    // Force agent to reconsider — do not silently proceed
+    return {
+      warning: info.staleness,
+      suggestion: info.suggestion,
+      proceed: false
+    };
+  }
+
+  return db.query(table, filter, limit, order_by);
+}`
+    },
+    {
+      name: "No Limit — Full Scan",
+      desc: "<strong>Limit Omitted:</strong> User says 'all orders from last month'. Agent omits limit parameter. 94,271 rows returned, 287MB. Context floods and truncates — finance report built on partial data.",
+      steps: [
+        { t:"u", role:"👤 User", body:"Get me all orders from last month for the monthly finance report. All of them — don't miss any." },
+        { t:"a", role:"🤖 Agent Reasoning", body:`[Reasoning] User wants ALL orders from June 2026.
+→ Table: "orders"
+→ Filter: created_at June 1–30
+→ User said "all" and "don't miss any" — no limit parameter` },
+        { t:"tc", role:"🔧 Tool Call", hall:true, body:`query_database({
+  table: "orders",
+  filter: {
+    "created_at": {
+      "$gte": "2026-06-01",
+      "$lte": "2026-06-30"
+    }
+  }
+  // limit: <H:omitted — agent interpreted "all" literally>
+})` },
+        { t:"tr", role:"✅ Tool Response", ok:true, body:`HTTP 200 OK
+{
+  "rows": 94271,
+  "data": [...94271 order objects...],
+  "bytes": "287MB",
+  "query_time": "8.4s"
+}`, note:"287MB of order data returned. Context window flooded — early rows dropped silently before processing." },
+        { t:"cx", role:"⚡ Cascade Impact", body:`Agent context window: 287MB loaded, then truncated.
+→ First ~60K orders dropped silently from context.
+→ Finance report generated from last 34K orders only.
+→ OR: task times out, user gets nothing.`, impact:"Finance report on 36% of actual orders. OR complete timeout. Presented as complete." }
+      ],
+      blast: 2,
+      cascade: [
+        { ico:"⚡", lbl:"No Limit", det:"94,271 rows returned — 287MB transferred", s:"corrupted" },
+        { ico:"💾", lbl:"Context Flooded", det:"Context truncated — early orders silently dropped", s:"corrupted" },
+        { ico:"📋", lbl:"Incomplete Report", det:"Finance report on 36% of orders — presented as full", s:"corrupted" }
+      ],
+      defense: `// Guard: enforce safe limits, use batch_export for large datasets
+
+const MAX_LIMIT = 500;
+const DEFAULT_LIMIT = 100;
+
+async function query_database(table, filter, limit, order_by) {
+  const effective = Math.min(limit || DEFAULT_LIMIT, MAX_LIMIT);
+
+  // Pre-check: count matching rows before fetching
+  const total = await db.count(table, filter);
+
+  if (total > effective) {
+    // Return count + warning — let agent decide next step
+    return {
+      warning: "Query matches " + total + " rows, limit is " + effective,
+      suggestion: total > 5000
+        ? "Use batch_export() for datasets this large"
+        : "Use pagination: query with { offset: 0, limit: " + effective + " }",
+      count: total,
+      data: [] // No data until agent acknowledges tradeoff
+    };
+  }
+
+  return db.query(table, filter, effective, order_by);
+}`
+    }
+  ]
+}
+];
+
+// ==========================================================
+// STATE
+// ==========================================================
+let schIdx = 0;
+let scIdx = 0;
+let steps = [];
+let stepN = 0;
+let running = false;
+let timer = null;
+let defOn = false;
+
+// ==========================================================
+// INIT / SCHEMA LOAD
+// ==========================================================
+function loadSchema(i) {
+  schIdx = i;
+  scIdx = 0;
+  document.querySelectorAll('.pbtn').forEach((b,j) => b.classList.toggle('on', j===i));
+  const s = SCHEMAS[i];
+  document.getElementById('schemaBox').textContent = s.schema;
+  const rb = document.getElementById('rBadge');
+  rb.textContent = s.risk;
+  rb.className = 'rbadge ' + s.risk;
+  const rm = document.getElementById('rMeter');
+  rm.style.width = s.riskScore + '%';
+  rm.style.background = s.riskColor;
+  document.getElementById('paramRows').innerHTML = s.params.map(p =>
+    `<div class="param-row">
+      <span class="pname">.${p.name}</span>
+      <span class="pdesc">${p.desc}</span>
+      <span class="plevel ${p.level}">${p.level}</span>
+    </div>`
+  ).join('');
+  refreshTabs();
+  resetSim();
+}
+
+function refreshTabs() {
+  const s = SCHEMAS[schIdx];
+  document.querySelectorAll('.stab').forEach((t,i) => {
+    t.classList.toggle('on', i===scIdx);
+    t.textContent = s.scenarios[i]?.name || ('Scenario ' + (i+1));
+  });
+  document.getElementById('sdesc').innerHTML = s.scenarios[scIdx]?.desc || '';
+  updateStepInd();
+}
+
+function selScen(i) {
+  scIdx = i;
+  refreshTabs();
+  resetSim();
+}
+
+// ==========================================================
+// SIMULATION ENGINE
+// ==========================================================
+function runSim() {
+  if (running) return;
+  const sc = SCHEMAS[schIdx].scenarios[scIdx];
+  steps = sc.steps;
+  if (stepN === 0) {
+    document.getElementById('clog').innerHTML = '';
+    document.getElementById('ctree').innerHTML = '';
+    document.getElementById('bnum').textContent = '—';
+  }
+  running = true;
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('runBtn').textContent = '⏳ Running…';
+  defOn = false;
+  const dt = document.getElementById('defToggle');
+  dt.classList.remove('on');
+  document.getElementById('dcode').classList.remove('vis');
+  document.getElementById('dres').classList.remove('vis');
+  nextStep();
+}
+
+function nextStep() {
+  if (stepN >= steps.length) {
+    running = false;
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('runBtn').textContent = '▶ Run Again';
+    showCascade();
+    return;
+  }
+  const step = steps[stepN++];
+  renderStep(step);
+  updateStepInd();
+  timer = setTimeout(nextStep, delay(step.t));
+}
+
+function delay(t) {
+  return { u:700, a:1400, tc:900, tr:1100, cx:800 }[t] || 900;
+}
+
+function renderStep(step) {
+  const log = document.getElementById('clog');
+  const div = document.createElement('div');
+  div.className = 'msg ' + step.t + (step.ok ? ' ok' : '');
+  const roleClass = { u:'u', a:'a', tc:'tc', tr:'tr', cx:'cx' }[step.t];
+  let body = '';
+  if (step.t === 'tc') {
+    body = fmtToolCall(step.body, step.hall);
+  } else if (step.t === 'tr') {
+    body = fmtToolResp(step);
+  } else if (step.t === 'cx') {
+    body = `${esc(step.body)}<div class="cx-impact">⚠ Impact: ${esc(step.impact)}</div>`;
+  } else {
+    body = esc(step.body);
+  }
+  div.innerHTML = `<div class="mrole ${roleClass}">${esc(step.role)}</div><div class="mbody">${body}</div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function fmtToolCall(raw, hall) {
+  if (!hall) return esc(raw);
+  return raw.replace(/<H:([^>]+)>/g, (_, v) => `<span class="hall">${esc(v)}</span>`);
+}
+
+function fmtToolResp(step) {
+  let h = '';
+  if (step.ok) h += `<div class="status-ok">✅ HTTP 200 OK</div>`;
+  if (step.ok && step.note) h += `<div style="font-size:10px;color:var(--red);background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);border-radius:4px;padding:3px 7px;margin-bottom:6px;">⚠ ${esc(step.note)}</div>`;
+  h += `<pre style="white-space:pre-wrap;word-break:break-word;">${esc(step.body)}</pre>`;
+  if (step.note && !step.ok) h += `<div class="tr-note">📝 ${esc(step.note)}</div>`;
+  return h;
+}
+
+function showCascade() {
+  const sc = SCHEMAS[schIdx].scenarios[scIdx];
+  document.getElementById('bnum').textContent = sc.blast;
+  const tree = document.getElementById('ctree');
+  tree.innerHTML = '';
+  sc.cascade.forEach((c, i) => {
+    const d = document.createElement('div');
+    d.className = 'cstep';
+    d.style.opacity = '0';
+    d.innerHTML = `<div class="cnode ${c.s}">${c.ico}</div><div class="cinfo"><div class="clbl">${esc(c.lbl)}</div><div class="cdet">${esc(c.det)}</div></div>`;
+    tree.appendChild(d);
+    setTimeout(() => { d.style.opacity='1'; d.style.transition='opacity .3s ease'; }, i*180);
+  });
+  document.getElementById('dcode').textContent = sc.defense;
+}
+
+function resetSim() {
+  if (timer) clearTimeout(timer);
+  running = false;
+  stepN = 0;
+  defOn = false;
+  document.getElementById('clog').innerHTML = `<div class="empty"><div class="empty-ico">🔬</div><div class="empty-t">Simulation Ready</div><div class="empty-s">Press Run to watch the agent fabricate tool arguments and see the cascade in real time.</div></div>`;
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('runBtn').textContent = '▶ Run Simulation';
+  document.getElementById('ctree').innerHTML = `<div class="empty" style="height:90px"><div class="empty-s">Run a simulation to see the cascade.</div></div>`;
+  document.getElementById('bnum').textContent = '—';
+  const dt = document.getElementById('defToggle');
+  dt.classList.remove('on');
+  document.getElementById('dcode').classList.remove('vis');
+  document.getElementById('dres').classList.remove('vis');
+  updateStepInd();
+}
+
+function updateStepInd() {
+  const total = steps.length || SCHEMAS[schIdx].scenarios[scIdx].steps.length;
+  document.getElementById('stepInd').textContent = `Step ${stepN}/${total}`;
+}
+
+// ==========================================================
+// DEFENSE TOGGLE
+// ==========================================================
+function toggleDef() {
+  defOn = !defOn;
+  document.getElementById('defToggle').classList.toggle('on', defOn);
+  document.getElementById('dcode').classList.toggle('vis', defOn);
+  document.getElementById('dres').classList.toggle('vis', defOn);
+  if (defOn) {
+    const sc = SCHEMAS[schIdx].scenarios[scIdx];
+    document.getElementById('dcode').textContent = sc.defense;
+  }
+}
+
+// ==========================================================
+// UTILS
+// ==========================================================
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ==========================================================
+// BOOT
+// ==========================================================
+loadSchema(0);
+</script>
+
+</body>
+</html>
