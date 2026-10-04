@@ -1,3 +1,5 @@
+> **Archived.** This repo moved to [RLASAF12/agent-failure-lab](https://github.com/RLASAF12/agent-failure-lab/tree/main/hallucitrap) (folder `hallucitrap/`, full history preserved). Archived 2026-10-04.
+
 # HalluciTrap 🪤
 
 > **Watch AI agents silently fabricate tool arguments — and see exactly what breaks next.**
